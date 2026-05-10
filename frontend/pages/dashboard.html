@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Dashboard — College Library</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">📚</span>
+    <h1>College <span>Library</span></h1>
+  </div>
+  <div class="nav-links">
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="books.html">Browse Books</a>
+    <a href="my-books.html">My Books</a>
+  </div>
+  <div class="nav-user">
+    <span class="user-name" id="user-name-display">Student</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h2 id="welcome-msg">Welcome back!</h2>
+    <p>Here's your library activity overview</p>
+  </div>
+
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📖</div>
+      <div class="stat-info"><div class="value" id="stat-borrowed">—</div><div class="label">Currently Borrowed</div></div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info"><div class="value" id="stat-returned">—</div><div class="label">Returned</div></div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-info"><div class="value" id="stat-overdue">—</div><div class="label">Overdue</div></div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-icon">💰</div>
+      <div class="stat-info"><div class="value" id="stat-fine">—</div><div class="label">Total Fine (₹)</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 My Recent Borrowed Books</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Book Title</th><th>Author</th><th>Borrow Date</th>
+            <th>Due Date</th><th>Status</th><th>Fine (₹)</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="borrows-table"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem;text-align:center">
+    <a href="books.html" class="btn btn-primary">🔍 Browse All Books</a>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  if (!requireAuth()) {}
+
+  const user = getUser();
+  document.getElementById('user-name-display').textContent = user?.name || 'Student';
+  document.getElementById('welcome-msg').textContent = `Welcome, ${user?.name?.split(' ')[0] || 'Student'}!`;
+
+  async function loadDashboard() {
+    try {
+      const records = await apiCall('/borrows/my');
+      const borrowed = records.filter(r => r.status === 'borrowed').length;
+      const returned = records.filter(r => r.status === 'returned').length;
+      const overdue  = records.filter(r => r.status === 'overdue').length;
+      const fine     = records.reduce((s, r) => s + parseFloat(r.fine_amount || 0), 0);
+
+      document.getElementById('stat-borrowed').textContent = borrowed;
+      document.getElementById('stat-returned').textContent = returned;
+      document.getElementById('stat-overdue').textContent  = overdue;
+      document.getElementById('stat-fine').textContent     = fine.toFixed(2);
+
+      const tbody = document.getElementById('borrows-table');
+      if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">📚</div><p>No borrow history yet. <a href="books.html">Browse books</a></p></div></td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = records.slice(0,10).map(r => {
+        const badgeMap = { borrowed:'badge-info', returned:'badge-success', overdue:'badge-danger' };
+        const overdue = r.status === 'overdue';
+        const canRenew = r.status === 'borrowed' && r.renewed_count < 2;
+        return `<tr>
+          <td><strong>${r.title}</strong></td>
+          <td>${r.author}</td>
+          <td>${r.borrow_date}</td>
+          <td style="color:${overdue?'var(--danger)':'inherit'}">${r.due_date}</td>
+          <td><span class="badge ${badgeMap[r.status]||'badge-info'}">${r.status}</span></td>
+          <td>${parseFloat(r.fine_amount||0)>0 ? '₹'+parseFloat(r.fine_amount).toFixed(2) : '—'}</td>
+          <td>${canRenew ? `<button class="btn btn-warning btn-sm" onclick="renewBook(${r.id})">🔄 Renew</button>` : '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  async function renewBook(id) {
+    try {
+      const d = await apiCall(`/borrows/renew/${id}`, 'POST');
+      showToast('Book renewed! New due: ' + d.new_due_date);
+      loadDashboard();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function logout() {
+    clearAuth();
+    window.location.href = 'login.html';
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>

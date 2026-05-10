@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students — Admin</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand"><span class="logo-icon">📚</span><h1>College <span>Library</span> — Admin</h1></div>
+  <div class="nav-links">
+    <a href="admin.html">Dashboard</a>
+    <a href="admin-books.html">Manage Books</a>
+    <a href="admin-borrows.html">Borrow/Return</a>
+    <a href="admin-students.html" class="active">Students</a>
+  </div>
+  <div class="nav-user"><span class="user-name">🛡️ Admin</span><button class="btn-logout" onclick="logout()">Logout</button></div>
+</nav>
+
+<div class="page">
+  <div class="page-header"><h2>🎓 Registered Students</h2><p>All students registered in the library system</p></div>
+  <div class="search-bar">
+    <input type="text" id="search-input" class="form-control" placeholder="Search students…" oninput="filterStudents()">
+  </div>
+  <div class="card">
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Student ID</th><th>Email</th><th>Department</th><th>Year</th><th>Phone</th><th>Joined</th></tr></thead>
+        <tbody id="students-table"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  if (!requireAuth(true)) {}
+  let allStudents = [];
+
+  async function loadStudents() {
+    try {
+      allStudents = await apiCall('/students');
+      renderStudents(allStudents);
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function filterStudents() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    renderStudents(allStudents.filter(s =>
+      s.name.toLowerCase().includes(q) || s.student_id.toLowerCase().includes(q) ||
+      s.email.toLowerCase().includes(q) || (s.department||'').toLowerCase().includes(q)
+    ));
+  }
+
+  function renderStudents(list) {
+    const tbody = document.getElementById('students-table');
+    if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No students found.</p></div></td></tr>'; return; }
+    tbody.innerHTML = list.map((s,i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td><strong>${s.name}</strong></td>
+        <td><span class="badge badge-info">${s.student_id}</span></td>
+        <td>${s.email}</td>
+        <td>${s.department || '—'}</td>
+        <td>${s.year ? s.year + (s.year==1?'st':s.year==2?'nd':s.year==3?'rd':'th') + ' Year' : '—'}</td>
+        <td>${s.phone || '—'}</td>
+        <td style="font-size:.8rem">${new Date(s.created_at).toLocaleDateString()}</td>
+      </tr>
+    `).join('');
+  }
+
+  function logout() { clearAuth(); window.location.href = 'login.html'; }
+  loadStudents();
+</script>
+</body>
+</html>

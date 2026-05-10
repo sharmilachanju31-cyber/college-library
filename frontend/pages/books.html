@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Books — College Library</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">📚</span>
+    <h1>College <span>Library</span></h1>
+  </div>
+  <div class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="books.html" class="active">Browse Books</a>
+    <a href="my-books.html">My Books</a>
+  </div>
+  <div class="nav-user">
+    <span class="user-name" id="user-name-display"></span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h2>📚 Browse Books</h2>
+    <p>Search and explore our collection</p>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" class="form-control" placeholder="Search by title, author, or ISBN…">
+    <select id="cat-filter" class="form-control" style="max-width:180px">
+      <option value="">All Categories</option>
+      <option>Programming</option><option>Data Science</option>
+      <option>Algorithms</option><option>Database</option>
+      <option>Networking</option><option>Architecture</option>
+    </select>
+    <button class="btn btn-primary" onclick="loadBooks()">🔍 Search</button>
+    <button class="btn btn-outline" onclick="clearSearch()">Clear</button>
+  </div>
+
+  <div id="books-container" class="books-grid"><div class="loading">Loading books…</div></div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  if (!requireAuth()) {}
+  document.getElementById('user-name-display').textContent = getUser()?.name || '';
+
+  async function loadBooks() {
+    const search = document.getElementById('search-input').value;
+    const category = document.getElementById('cat-filter').value;
+    let url = '/books?';
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (category) url += `category=${encodeURIComponent(category)}`;
+
+    const container = document.getElementById('books-container');
+    container.innerHTML = '<div class="loading">Searching…</div>';
+    try {
+      const books = await apiCall(url, 'GET', null, false);
+      if (books.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No books found.</p></div>';
+        return;
+      }
+      container.innerHTML = books.map(b => `
+        <div class="book-card">
+          <div class="book-icon">📗</div>
+          <h3>${b.title}</h3>
+          <div class="author">by ${b.author}</div>
+          <span class="category">${b.category || 'General'}</span>
+          <div class="book-avail">
+            <span class="badge ${b.available_copies > 0 ? 'badge-success' : 'badge-danger'}">
+              ${b.available_copies > 0 ? b.available_copies + ' Available' : 'Not Available'}
+            </span>
+          </div>
+          <div style="margin-top:.5rem;font-size:.8rem;color:var(--text-muted)">
+            ISBN: ${b.isbn} • ${b.year_published || ''}
+          </div>
+        </div>
+      `).join('');
+    } catch(e) { showToast(e.message, 'error'); }
+  }
+
+  function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('cat-filter').value = '';
+    loadBooks();
+  }
+
+  document.getElementById('search-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadBooks();
+  });
+
+  function logout() { clearAuth(); window.location.href = 'login.html'; }
+  loadBooks();
+</script>
+</body>
+</html>

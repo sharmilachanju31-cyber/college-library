@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Books — Admin</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand"><span class="logo-icon">📚</span><h1>College <span>Library</span> — Admin</h1></div>
+  <div class="nav-links">
+    <a href="admin.html">Dashboard</a>
+    <a href="admin-books.html" class="active">Manage Books</a>
+    <a href="admin-borrows.html">Borrow/Return</a>
+    <a href="admin-students.html">Students</a>
+  </div>
+  <div class="nav-user"><span class="user-name">🛡️ Admin</span><button class="btn-logout" onclick="logout()">Logout</button></div>
+</nav>
+
+<div class="page">
+  <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div><h2>📚 Manage Books</h2><p>Add, edit and remove books from the library</p></div>
+    <button class="btn btn-accent" onclick="openModal()">+ Add Book</button>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" class="form-control" placeholder="Search books…">
+    <button class="btn btn-primary" onclick="loadBooks()">🔍 Search</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>#</th><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th><th>Total</th><th>Available</th><th>Actions</th></tr></thead>
+        <tbody id="books-table"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="book-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add New Book</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div class="form-row">
+      <div class="form-group"><label>Title *</label><input type="text" id="b-title" class="form-control"></div>
+      <div class="form-group"><label>Author *</label><input type="text" id="b-author" class="form-control"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>ISBN *</label><input type="text" id="b-isbn" class="form-control"></div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="b-category" class="form-control">
+          <option value="">Select…</option>
+          <option>Programming</option><option>Data Science</option><option>Algorithms</option>
+          <option>Database</option><option>Networking</option><option>Architecture</option><option>Mathematics</option><option>Science</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Publisher</label><input type="text" id="b-publisher" class="form-control"></div>
+      <div class="form-group"><label>Year Published</label><input type="number" id="b-year" class="form-control" placeholder="2024"></div>
+    </div>
+    <div class="form-group"><label>Total Copies</label><input type="number" id="b-copies" class="form-control" value="1" min="1"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBook()">💾 Save Book</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  if (!requireAuth(true)) {}
+  let allBooks = [];
+
+  async function loadBooks() {
+    const search = document.getElementById('search-input').value;
+    try {
+      allBooks = await apiCall('/books' + (search ? `?search=${encodeURIComponent(search)}` : ''), 'GET', null, false);
+      const tbody = document.getElementById('books-table');
+      if (allBooks.length === 0) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No books found</p></div></td></tr>'; return; }
+      tbody.innerHTML = allBooks.map((b, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td><strong>${b.title}</strong></td>
+          <td>${b.author}</td>
+          <td style="font-size:.8rem">${b.isbn}</td>
+          <td>${b.category || '—'}</td>
+          <td style="text-align:center">${b.total_copies}</td>
+          <td style="text-align:center"><span class="badge ${b.available_copies>0?'badge-success':'badge-danger'}">${b.available_copies}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="editBook(${b.id})">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id},'${b.title.replace(/'/g,"\\'")}')">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function openModal(b = null) {
+    document.getElementById('edit-id').value = b?.id || '';
+    document.getElementById('modal-title').textContent = b ? 'Edit Book' : 'Add New Book';
+    document.getElementById('b-title').value = b?.title || '';
+    document.getElementById('b-author').value = b?.author || '';
+    document.getElementById('b-isbn').value = b?.isbn || '';
+    document.getElementById('b-category').value = b?.category || '';
+    document.getElementById('b-publisher').value = b?.publisher || '';
+    document.getElementById('b-year').value = b?.year_published || '';
+    document.getElementById('b-copies').value = b?.total_copies || 1;
+    document.getElementById('book-modal').classList.add('open');
+  }
+
+  function editBook(id) { openModal(allBooks.find(b => b.id === id)); }
+  function closeModal() { document.getElementById('book-modal').classList.remove('open'); }
+
+  async function saveBook() {
+    const id = document.getElementById('edit-id').value;
+    const body = {
+      isbn: document.getElementById('b-isbn').value,
+      title: document.getElementById('b-title').value,
+      author: document.getElementById('b-author').value,
+      category: document.getElementById('b-category').value,
+      publisher: document.getElementById('b-publisher').value,
+      year_published: document.getElementById('b-year').value,
+      total_copies: document.getElementById('b-copies').value
+    };
+    try {
+      if (id) await apiCall(`/books/${id}`, 'PUT', body);
+      else await apiCall('/books', 'POST', body);
+      showToast(id ? 'Book updated!' : 'Book added!');
+      closeModal(); loadBooks();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  async function deleteBook(id, title) {
+    if (!confirm(`Delete "${title}"?`)) return;
+    try {
+      await apiCall(`/books/${id}`, 'DELETE');
+      showToast('Book deleted.'); loadBooks();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function logout() { clearAuth(); window.location.href = 'login.html'; }
+  loadBooks();
+</script>
+</body>
+</html>

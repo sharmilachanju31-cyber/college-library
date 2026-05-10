@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Books — College Library</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">📚</span>
+    <h1>College <span>Library</span></h1>
+  </div>
+  <div class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="books.html">Browse Books</a>
+    <a href="my-books.html" class="active">My Books</a>
+  </div>
+  <div class="nav-user">
+    <span class="user-name" id="user-name-display"></span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h2>📖 My Books</h2>
+    <p>Your complete borrowing history and active loans</p>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+    <button class="btn btn-primary btn-sm" onclick="filterRecords('all')">All</button>
+    <button class="btn btn-outline btn-sm" onclick="filterRecords('borrowed')">Active</button>
+    <button class="btn btn-warning btn-sm" onclick="filterRecords('overdue')">Overdue</button>
+    <button class="btn btn-success btn-sm" onclick="filterRecords('returned')">Returned</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Book</th><th>ISBN</th><th>Borrow Date</th>
+            <th>Due Date</th><th>Return Date</th><th>Renewals</th><th>Status</th><th>Fine (₹)</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="records-table"><tr><td colspan="10" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  if (!requireAuth()) {}
+  document.getElementById('user-name-display').textContent = getUser()?.name || '';
+
+  let allRecords = [];
+
+  async function loadRecords() {
+    try {
+      allRecords = await apiCall('/borrows/my');
+      renderTable(allRecords);
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function filterRecords(status) {
+    const filtered = status === 'all' ? allRecords : allRecords.filter(r => r.status === status);
+    renderTable(filtered);
+  }
+
+  function renderTable(records) {
+    const tbody = document.getElementById('records-table');
+    if (records.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="icon">📚</div><p>No records found.</p></div></td></tr>';
+      return;
+    }
+    const badgeMap = { borrowed:'badge-info', returned:'badge-success', overdue:'badge-danger' };
+    tbody.innerHTML = records.map((r, i) => {
+      const overdue = r.status === 'overdue';
+      const canRenew = r.status === 'borrowed' && r.renewed_count < 2;
+      return `<tr>
+        <td>${i+1}</td>
+        <td><strong>${r.title}</strong><br><small style="color:var(--text-muted)">${r.author}</small></td>
+        <td style="font-size:.8rem">${r.isbn}</td>
+        <td>${r.borrow_date}</td>
+        <td style="color:${overdue?'var(--danger)':'inherit'};font-weight:${overdue?600:400}">${r.due_date}</td>
+        <td>${r.return_date || '—'}</td>
+        <td style="text-align:center">${r.renewed_count}/2</td>
+        <td><span class="badge ${badgeMap[r.status]||'badge-info'}">${r.status}</span></td>
+        <td>${parseFloat(r.fine_amount||0)>0 ? '<span style="color:var(--danger);font-weight:600">₹'+parseFloat(r.fine_amount).toFixed(2)+'</span>' : '—'}</td>
+        <td>${canRenew ? `<button class="btn btn-warning btn-sm" onclick="renewBook(${r.id})">🔄 Renew</button>` : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function renewBook(id) {
+    try {
+      const d = await apiCall(`/borrows/renew/${id}`, 'POST');
+      showToast('Renewed! New due date: ' + d.new_due_date);
+      loadRecords();
+    } catch(e) { showToast(e.message,'error'); }
+  }
+
+  function logout() { clearAuth(); window.location.href = 'login.html'; }
+  loadRecords();
+</script>
+</body>
+</html>

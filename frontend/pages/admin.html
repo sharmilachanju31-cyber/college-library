@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — College Library</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="navbar-brand">
+    <span class="logo-icon">📚</span>
+    <h1>College <span>Library</span> — Admin</h1>
+  </div>
+  <div class="nav-links">
+    <a href="admin.html" class="active">Dashboard</a>
+    <a href="admin-books.html">Manage Books</a>
+    <a href="admin-borrows.html">Borrow/Return</a>
+    <a href="admin-students.html">Students</a>
+  </div>
+  <div class="nav-user">
+    <span class="user-name">🛡️ Admin</span>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h2>📊 Admin Dashboard</h2>
+    <p>Library management overview</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📚</div>
+      <div class="stat-info"><div class="value" id="stat-total-books">—</div><div class="label">Total Books</div></div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon">🎓</div>
+      <div class="stat-info"><div class="value" id="stat-students">—</div><div class="label">Registered Students</div></div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-icon">📖</div>
+      <div class="stat-info"><div class="value" id="stat-active-borrows">—</div><div class="label">Active Borrows</div></div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-info"><div class="value" id="stat-overdue-count">—</div><div class="label">Overdue Books</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚠️ Overdue / Recent Borrow Records</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Student</th><th>Roll No</th><th>Book</th><th>Borrow Date</th><th>Due Date</th><th>Status</th><th>Fine</th></tr>
+        </thead>
+        <tbody id="overdue-table"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div style="margin-top:1rem">
+      <a href="admin-borrows.html" class="btn btn-primary btn-sm">View All Records →</a>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+    <a href="admin-books.html" class="card" style="text-align:center;cursor:pointer;text-decoration:none">
+      <div style="font-size:2.5rem">📚</div>
+      <h3 style="color:var(--primary);margin-top:.5rem">Manage Books</h3>
+      <p style="color:var(--text-muted);font-size:.85rem">Add, edit, delete books</p>
+    </a>
+    <a href="admin-borrows.html" class="card" style="text-align:center;cursor:pointer;text-decoration:none">
+      <div style="font-size:2.5rem">🔄</div>
+      <h3 style="color:var(--primary);margin-top:.5rem">Issue / Return</h3>
+      <p style="color:var(--text-muted);font-size:.85rem">Manage book circulation</p>
+    </a>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+
+<script>
+
+if (!requireAuth(true)) {}
+
+async function loadDashboard() {
+
+  try {
+
+    const [books, students, borrows] = await Promise.all([
+      apiCall('/books'),
+      apiCall('/students'),
+      apiCall('/borrows')
+    ]);
+
+    // ACTIVE BORROWS
+    const active = borrows.filter(r => !r.return_date).length;
+
+    // OVERDUE BORROWS
+    const overdue = borrows.filter(r => {
+      return !r.return_date &&
+             new Date(r.due_date) < new Date();
+    }).length;
+
+    // SET STATS
+    document.getElementById('stat-total-books').textContent =
+      books.length;
+
+    document.getElementById('stat-students').textContent =
+      students.length;
+
+    document.getElementById('stat-active-borrows').textContent =
+      active;
+
+    document.getElementById('stat-overdue-count').textContent =
+      overdue;
+
+    // OVERDUE LIST
+    const overdueList = borrows.filter(r => {
+
+      return !r.return_date &&
+             new Date(r.due_date) < new Date();
+
+    });
+
+    const tbody =
+      document.getElementById('overdue-table');
+
+    // IF NO OVERDUE
+    if (overdueList.length === 0) {
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7"
+              style="text-align:center;
+                     color:green;
+                     padding:20px;">
+            ✅ No overdue books
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+    // SHOW OVERDUE RECORDS
+    tbody.innerHTML = overdueList.map(r => {
+
+      const days =
+        Math.floor(
+          (new Date() - new Date(r.due_date))
+          / (1000 * 60 * 60 * 24)
+        );
+
+      const fine = days * 2;
+
+      return `
+        <tr>
+
+          <td>${r.student_name || '-'}</td>
+
+          <td>${r.student_id || '-'}</td>
+
+          <td>${r.title || '-'}</td>
+
+          <td>${r.borrow_date || '-'}</td>
+
+          <td style="color:red;font-weight:bold">
+            ${r.due_date || '-'}
+          </td>
+
+          <td>
+            <span class="badge badge-danger">
+              Overdue ${days}d
+            </span>
+          </td>
+
+          <td style="color:red;font-weight:bold">
+            ₹${fine}
+          </td>
+
+        </tr>
+      `;
+
+    }).join('');
+
+  } catch (e) {
+
+    console.log(e);
+
+    showToast('Failed to load dashboard', 'error');
+  }
+}
+
+// LOGOUT
+function logout() {
+
+  clearAuth();
+
+  window.location.href = 'login.html';
+}
+
+// LOAD PAGE
+loadDashboard();
+
+</script>
+</body>
+</html>
