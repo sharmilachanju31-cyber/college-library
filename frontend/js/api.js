@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000';
 
 // ---- Auth Helpers ----
 function getToken() { return localStorage.getItem('lib_token'); }
