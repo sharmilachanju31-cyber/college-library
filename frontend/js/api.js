@@ -1,5 +1,9 @@
 // API Configuration
 const BASE_URL = 'http://localhost:5000';
+<<<<<<< HEAD
+=======
+
+>>>>>>> 082d43a40fb427961e64ff36311308b4d50d2b19
 // ---- Auth Helpers ----
 function getToken() { return localStorage.getItem('lib_token'); }
 function getUser()  { return JSON.parse(localStorage.getItem('lib_user') || 'null'); }
