@@ -2,7 +2,7 @@
 // API CONFIGURATION
 // ======================================
 
-const BASE_URL = 'https://college-library-ipcy.onrender.com/api';
+const API_BASE = 'https://college-library-ipcy.onrender.com/api';
 
 
 // ======================================
@@ -71,15 +71,15 @@ async function apiCall(
     options.body = JSON.stringify(body);
   }
 
-  // FIXED HERE
   const response = await fetch(
-    BASE_URL + endpoint,
+    API_BASE + endpoint,
     options
   );
 
   const data = await response.json();
 
   if (!response.ok) {
+
     throw new Error(
       data.message || 'Request failed'
     );
