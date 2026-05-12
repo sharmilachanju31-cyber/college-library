@@ -1,56 +1,156 @@
-// API Configuration
-const BASE_URL = 'http://localhost:5000';
-<<<<<<< HEAD
-=======
+// ======================================
+// API CONFIGURATION
+// ======================================
 
->>>>>>> 082d43a40fb427961e64ff36311308b4d50d2b19
-// ---- Auth Helpers ----
-function getToken() { return localStorage.getItem('lib_token'); }
-function getUser()  { return JSON.parse(localStorage.getItem('lib_user') || 'null'); }
-function isAdmin()  { return getUser()?.role === 'admin'; }
+const BASE_URL = 'https://college-library-ipcy.onrender.com/api';
+
+
+// ======================================
+// AUTH HELPERS
+// ======================================
+
+function getToken() {
+  return localStorage.getItem('lib_token');
+}
+
+function getUser() {
+  return JSON.parse(
+    localStorage.getItem('lib_user') || 'null'
+  );
+}
+
+function isAdmin() {
+  return getUser()?.role === 'admin';
+}
 
 function setAuth(token, user) {
+
   localStorage.setItem('lib_token', token);
-  localStorage.setItem('lib_user', JSON.stringify(user));
+
+  localStorage.setItem(
+    'lib_user',
+    JSON.stringify(user)
+  );
 }
 
 function clearAuth() {
+
   localStorage.removeItem('lib_token');
+
   localStorage.removeItem('lib_user');
 }
 
 function authHeaders() {
-  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` };
+
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${getToken()}`
+  };
 }
 
-// ---- API Calls ----
-async function apiCall(endpoint, method = 'GET', body = null, useAuth = true) {
-  const opts = {
+
+// ======================================
+// API CALL FUNCTION
+// ======================================
+
+async function apiCall(
+  endpoint,
+  method = 'GET',
+  body = null,
+  useAuth = true
+) {
+
+  const options = {
     method,
-    headers: useAuth ? authHeaders() : { 'Content-Type': 'application/json' }
+    headers: useAuth
+      ? authHeaders()
+      : { 'Content-Type': 'application/json' }
   };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(API_BASE + endpoint, opts);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(
+    BASE_URL + endpoint,
+    options
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || 'Request failed'
+    );
+  }
+
   return data;
 }
 
-// ---- Toast Notification ----
-function showToast(msg, type = 'success') {
-  const t = document.createElement('div');
-  t.className = `toast toast-${type}`;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.classList.add('show'), 10);
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+
+// ======================================
+// TOAST MESSAGE
+// ======================================
+
+function showToast(
+  msg,
+  type = 'success'
+) {
+
+  const toast =
+    document.createElement('div');
+
+  toast.className =
+    `toast toast-${type}`;
+
+  toast.textContent = msg;
+
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+
+  setTimeout(() => {
+
+    toast.classList.remove('show');
+
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+
+  }, 3000);
 }
 
-// ---- Guard: redirect if not logged in ----
+
+// ======================================
+// LOGIN CHECK
+// ======================================
+
 function requireAuth(adminOnly = false) {
+
   const user = getUser();
+
   const token = getToken();
-  if (!token || !user) { window.location.href = 'login.html'; return false; }
-  if (adminOnly && user.role !== 'admin') { window.location.href = 'dashboard.html'; return false; }
+
+  if (!token || !user) {
+
+    window.location.href =
+      'login.html';
+
+    return false;
+  }
+
+  if (
+    adminOnly &&
+    user.role !== 'admin'
+  ) {
+
+    window.location.href =
+      'dashboard.html';
+
+    return false;
+  }
+
   return true;
 }
